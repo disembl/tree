@@ -8,11 +8,19 @@
  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *****************/
+
+/*
+ * To conver to an append-only design, only the 'fwrite' in the '_insert' function
+ * must be changed. All other writes (save for delete), are appended to the end.
+ * Also, the root address must instead be written to and searched for at the end.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>    
 #include <string.h>
+#include <time.h>
 
-#ifdef L_ctermid
+#ifdef L_ctermidNOPE
 #include <unistd.h>
 #include <fcntl.h>
 #define LOCK
@@ -47,10 +55,15 @@ void put(db *, unsigned char *, unsigned char *);
 uint64_t search(db *, unsigned char *, int *);
 unsigned char* get(db *, unsigned char *);
 void db_init(db *, const char *);
+
+#ifdef LOCK
 int db_lock(db *);
 int db_unlock(db *);
+#endif
+
 void db_close(db *);
 
+#ifdef LOCK
 int
 db_lock(db* db) {
   db->fl.l_type   = F_WRLCK; 
@@ -66,6 +79,7 @@ db_unlock(db* db) {
   db->fl.l_type = F_UNLCK;
   fcntl((db->fp)->_file, F_SETLK, &(db->fl));
 }
+#endif
 
 void
 to_big(unsigned char* buf, uint64_t val) {
@@ -292,6 +306,7 @@ put(db* db, unsigned char* key, unsigned char* value)
     }
   }
 #endif
+  fflush(db->fp);
 }
 
 unsigned char*
@@ -383,13 +398,36 @@ db_close(db* db)
   fclose(db->fp);
 }
 
+/*** function for testing ***/
+
+char *random_str() {
+  int i;
+  char *alphabet = "abcdefghijklmnopqrstuvwxyz";
+  char *string = malloc(33);
+  for (i=0; i<32; i++) {
+    string[i] = alphabet[rand()%26];
+  }
+  string[i] = 0;
+  return string;
+}
+
+/***************************/
+
 int
 main(void)
 {
   db new;
   db_init(&new, "test");
+  srand(time(NULL));
+  getchar();
+  int i;
+  for( i=0; i<50000; ++i )
+    put(&new,random_str(),random_str());
   put(&new,"hello","world");
+  for( i=0; i<50000; ++i )
+    put(&new,random_str(),random_str());
   char* value = get(&new,"hello");
   puts(value);
+  db_close(&new);
   return 0; 
 }
