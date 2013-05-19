@@ -418,14 +418,7 @@ main(void)
 {
   db new;
   db_init(&new, "test");
-  srand(time(NULL));
-  getchar();
-  int i;
-  for( i=0; i<50000; ++i )
-    put(&new,random_str(),random_str());
   put(&new,"hello","world");
-  for( i=0; i<50000; ++i )
-    put(&new,random_str(),random_str());
   char* value = get(&new,"hello");
   puts(value);
   db_close(&new);
