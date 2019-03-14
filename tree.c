@@ -26,6 +26,11 @@
 #define LOCK
 #endif
 
+#ifdef _WIN32
+#define fseeko _fseeki64
+#define ftello _ftelli64
+#endif
+
 typedef unsigned long long uint64_t;
 typedef unsigned int uint32_t;
 typedef unsigned char uint8_t;
